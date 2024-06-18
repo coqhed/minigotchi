@@ -4,3 +4,6 @@
 # builds
 minigotchi/*.zip
 minigotchi/build
+
+/configs/tinygotchi_config.cpp
+/configs/
