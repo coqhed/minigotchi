@@ -182,7 +182,7 @@ void Frame::pack() {
     Frame::beaconFrame[currentByte++] = nextByte;
   }
 
-  /* Uncomment if you want to test beacon frames
+  /* Uncomment if you want to test beacon frames  */
 
   Serial.println("('-') Full Beacon Frame:");
   for (size_t i = 0; i < sizeof(Frame::beaconFrame); ++i) {
@@ -191,7 +191,7 @@ void Frame::pack() {
   }
   Serial.println(" ");
 
-  */
+
 }
 
 bool Frame::send() {

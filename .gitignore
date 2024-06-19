@@ -3,4 +3,5 @@
 
 # builds
 minigotchi/*.zip
-minigotchi/build
+minigotchi/build!/configs/penigotchi_config_esp01_dev.cpp
+!/configs/
