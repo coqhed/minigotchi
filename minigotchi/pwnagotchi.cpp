@@ -52,9 +52,9 @@ void Pwnagotchi::detect() {
     Display::updateDisplay("(0-o)", "Scanning  for Pwnagotchi...");
     delay(Config::shortDelay);
     Serial.println(" ");
-    delay(Config::shortDelay);   
+    delay(Config::shortDelay);
   }
-    // delay for scanning
+  // delay for scanning
   delay(Config::longDelay);
 
   // check if the pwnagotchiCallback wasn't triggered during scanning
@@ -96,7 +96,6 @@ void Pwnagotchi::pwnagotchiCallback(unsigned char *buf,
     char addr[] = "00:00:00:00:00:00";
     getMAC(addr, snifferPacket->payload, 10);
     String src = addr;
-    // Serial.println("'" + src + "'");
 
     // check if the source MAC matches the target
     if (src == "de:ad:be:ef:de:ad") {
