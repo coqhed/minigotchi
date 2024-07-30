@@ -7,7 +7,29 @@
 Adafruit_SSD1306 *ssd1306_adafruit_display;
 Adafruit_SSD1305 *ssd1305_adafruit_display;
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C *ssd1306_ideaspark_display;
+U8G2_SH1106_128X64_NONAME_F_SW_I2C *sh1106_adafruit_display;
 
+/**
+ * Deletes any pointers if used
+ */
+Display::~Display() {
+  if (ssd1306_adafruit_display) {
+    delete ssd1306_adafruit_display;
+  }
+  if (ssd1305_adafruit_display) {
+    delete ssd1305_adafruit_display;
+  }
+  if (ssd1306_ideaspark_display) {
+    delete ssd1306_ideaspark_display;
+  }
+  if (sh1106_adafruit_display) {
+    delete sh1106_adafruit_display;
+  }
+}
+
+/**
+ * Function to initialize the screen ONLY.
+ */
 void Display::startScreen() {
   if (Config::display) {
     if (Config::screen == "SSD1306") {
@@ -40,6 +62,12 @@ void Display::startScreen() {
       delay(100);
       ssd1306_ideaspark_display->begin();
       delay(100);
+    } else if (Config::screen == "SH1106") {
+      sh1106_adafruit_display = new U8G2_SH1106_128X64_NONAME_F_SW_I2C(
+          U8G2_R0, SH1106_SCL, SH1106_SDA, U8X8_PIN_NONE);
+      delay(100);
+      sh1106_adafruit_display->begin();
+      delay(100);
     } else {
       // use wemos shield by default
       ssd1306_adafruit_display =
@@ -71,6 +99,10 @@ void Display::startScreen() {
       delay(100);
       ssd1306_ideaspark_display->clearBuffer();
       delay(100);
+    } else if (sh1106_adafruit_display != nullptr) {
+      delay(100);
+      sh1106_adafruit_display->clearBuffer();
+      delay(100);
     }
   }
 }
@@ -85,8 +117,17 @@ void Display::startScreen() {
  *
  */
 
+/**
+ * Updates the face ONLY
+ * @param face Face to use
+ */
 void Display::updateDisplay(String face) { Display::updateDisplay(face, ""); }
 
+/**
+ * Updates the display with both face and text
+ * @param face Face to use
+ * @param text Additional text under the face
+ */
 void Display::updateDisplay(String face, String text) {
   if (Config::display) {
     if (ssd1306_adafruit_display != nullptr) {
@@ -140,6 +181,23 @@ void Display::updateDisplay(String face, String text) {
       delay(5);
       ssd1306_ideaspark_display->sendBuffer();
       delay(5);
+    } else if (sh1106_adafruit_display != nullptr) {
+      sh1106_adafruit_display->clearBuffer();
+      delay(5);
+      sh1106_adafruit_display->setDrawColor(2);
+      delay(5);
+      sh1106_adafruit_display->setFont(u8g2_font_10x20_tr);
+      delay(5);
+      sh1106_adafruit_display->drawStr(0, 15, face.c_str());
+      delay(5);
+      sh1106_adafruit_display->setDrawColor(1);
+      delay(5);
+      sh1106_adafruit_display->setFont(u8g2_font_6x10_tr);
+      delay(5);
+      Display::printU8G2Data(0, 32, text.c_str());
+      delay(5);
+      sh1106_adafruit_display->sendBuffer();
+      delay(5);
     }
   }
 }
@@ -147,33 +205,98 @@ void Display::updateDisplay(String face, String text) {
 // If using the U8G2 library, it does not handle wrapping if text is too long to
 // fit on the screen So will print text for screens using that library via this
 // method to handle line-breaking
+
+/**
+ * Handles U8G2 screen formatting.
+ * This will only be used if the UG82 related screens are used and applied
+ * within the config
+ * @param x X value to print data
+ * @param y Y value to print data
+ * @param data Text to print
+ */
 void Display::printU8G2Data(int x, int y, const char *data) {
-  int numCharPerLine = ssd1306_ideaspark_display->getWidth() /
-                       ssd1306_ideaspark_display->getMaxCharWidth();
-  if (strlen(data) <= numCharPerLine &&
-      ssd1306_ideaspark_display->getStrWidth(data) <=
-          ssd1306_ideaspark_display->getWidth() -
-              ssd1306_ideaspark_display->getMaxCharWidth()) {
-    ssd1306_ideaspark_display->drawStr(x, y, data);
-  } else {
-    int lineNum = 0;
-    char buf[numCharPerLine + 1];
-    memset(buf, 0, sizeof(buf));
-    for (int i = 0; i < strlen(data); ++i) {
-      if (data[i] != '\n') {
-        buf[strlen(buf)] = data[i];
+  if (Config::screen == "IDEASPARK_SSD1306") {
+    auto *screen = static_cast<U8G2_SSD1306_128X64_NONAME_F_SW_I2C *>(
+        ssd1306_ideaspark_display);
+
+    int numCharPerLine = screen->getWidth() / screen->getMaxCharWidth();
+    if (strlen(data) <= numCharPerLine &&
+        screen->getStrWidth(data) <=
+            screen->getWidth() - screen->getMaxCharWidth()) {
+      screen->drawStr(x, y, data);
+    } else {
+      int lineNum = 0;
+      char buf[numCharPerLine + 1];
+      memset(buf, 0, sizeof(buf));
+      for (int i = 0; i < strlen(data); ++i) {
+        if (data[i] != '\n') {
+          buf[strlen(buf)] = data[i];
+        }
+        if (data[i] == '\n' || strlen(buf) == numCharPerLine ||
+            i == strlen(data) - 1 ||
+            screen->getStrWidth(buf) >=
+                screen->getWidth() - screen->getMaxCharWidth()) {
+          buf[strlen(buf)] = '\0';
+          screen->drawStr(x, y + (screen->getMaxCharHeight() * lineNum++) + 1,
+                          buf);
+          memset(buf, 0, sizeof(buf));
+        }
       }
-      if (data[i] == '\n' || strlen(buf) == numCharPerLine ||
-          i == strlen(data) - 1 ||
-          ssd1306_ideaspark_display->getStrWidth(buf) >=
-              ssd1306_ideaspark_display->getWidth() -
-                  ssd1306_ideaspark_display->getMaxCharWidth()) {
-        buf[strlen(buf)] = '\0';
-        ssd1306_ideaspark_display->drawStr(
-            x,
-            y + (ssd1306_ideaspark_display->getMaxCharHeight() * lineNum++) + 1,
-            buf);
-        memset(buf, 0, sizeof(buf));
+    }
+  } else if (Config::screen == "SH1106") {
+    auto *screen = static_cast<U8G2_SH1106_128X64_NONAME_F_SW_I2C *>(
+        sh1106_adafruit_display);
+
+    int numCharPerLine = screen->getWidth() / screen->getMaxCharWidth();
+    if (strlen(data) <= numCharPerLine &&
+        screen->getStrWidth(data) <=
+            screen->getWidth() - screen->getMaxCharWidth()) {
+      screen->drawStr(x, y, data);
+    } else {
+      int lineNum = 0;
+      char buf[numCharPerLine + 1];
+      memset(buf, 0, sizeof(buf));
+      for (int i = 0; i < strlen(data); ++i) {
+        if (data[i] != '\n') {
+          buf[strlen(buf)] = data[i];
+        }
+        if (data[i] == '\n' || strlen(buf) == numCharPerLine ||
+            i == strlen(data) - 1 ||
+            screen->getStrWidth(buf) >=
+                screen->getWidth() - screen->getMaxCharWidth()) {
+          buf[strlen(buf)] = '\0';
+          screen->drawStr(x, y + (screen->getMaxCharHeight() * lineNum++) + 1,
+                          buf);
+          memset(buf, 0, sizeof(buf));
+        }
+      }
+    }
+  } else {
+    auto *screen = static_cast<U8G2_SSD1306_128X64_NONAME_F_SW_I2C *>(
+        ssd1306_ideaspark_display);
+
+    int numCharPerLine = screen->getWidth() / screen->getMaxCharWidth();
+    if (strlen(data) <= numCharPerLine &&
+        screen->getStrWidth(data) <=
+            screen->getWidth() - screen->getMaxCharWidth()) {
+      screen->drawStr(x, y, data);
+    } else {
+      int lineNum = 0;
+      char buf[numCharPerLine + 1];
+      memset(buf, 0, sizeof(buf));
+      for (int i = 0; i < strlen(data); ++i) {
+        if (data[i] != '\n') {
+          buf[strlen(buf)] = data[i];
+        }
+        if (data[i] == '\n' || strlen(buf) == numCharPerLine ||
+            i == strlen(data) - 1 ||
+            screen->getStrWidth(buf) >=
+                screen->getWidth() - screen->getMaxCharWidth()) {
+          buf[strlen(buf)] = '\0';
+          screen->drawStr(x, y + (screen->getMaxCharHeight() * lineNum++) + 1,
+                          buf);
+          memset(buf, 0, sizeof(buf));
+        }
       }
     }
   }
